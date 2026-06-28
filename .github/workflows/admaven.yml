@@ -63,7 +63,8 @@ jobs:
           GIST_ID: ${{ secrets.GIST_ID }}
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
         run: |
-          COUNT=${{ github.event.inputs.count || '200' }}
+          INPUT_COUNT="${{ github.event.inputs.count }}"
+          COUNT=${INPUT_COUNT:-$((RANDOM % 11 + 42))}
           CONC=${{ github.event.inputs.concurrency || '10' }}
           python3 run.py --admaven --count $COUNT --concurrency $CONC --logs
 
@@ -123,7 +124,8 @@ jobs:
           GIST_ID: ${{ secrets.GIST_ID }}
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
         run: |
-          COUNT=${{ github.event.inputs.count || '200' }}
+          INPUT_COUNT="${{ github.event.inputs.count }}"
+          COUNT=${INPUT_COUNT:-$((RANDOM % 11 + 42))}
           CONC=${{ github.event.inputs.concurrency || '10' }}
           python3 run.py --admaven --count $COUNT --concurrency $CONC --logs
 
