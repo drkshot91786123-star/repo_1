@@ -1,37 +1,33 @@
 """
-Residential proxy pool — built from EVOMI_* environment variables.
+Residential proxy pool — loads proxies from a file (host:port:user:pass, one per line).
 """
 
-import os
 import random
 
 
-def _build_proxies(countries_env_key):
-    host = os.environ.get("EVOMI_HOST")
-    port = os.environ.get("EVOMI_PORT")
-    user = os.environ.get("EVOMI_USER")
-    pwd  = os.environ.get("EVOMI_PASS")
-    if not all([host, port, user, pwd]):
-        raise ValueError("EVOMI_HOST, EVOMI_PORT, EVOMI_USER, EVOMI_PASS must all be set")
-    countries = [c.strip() for c in os.environ.get(countries_env_key, "").split(",") if c.strip()]
-    if countries:
-        return [
-            {"server": f"http://{host}:{port}", "username": f"{user}_country-{c}", "password": pwd}
-            for c in countries
-        ]
-    # No countries = Evomi picks any country (bare credentials, no suffix)
-    return [{"server": f"http://{host}:{port}", "username": user, "password": pwd}]
-
-
 class ProxyPool:
-    def __init__(self, countries_env_key="EVOMI_HIGH_CPM_COUNTRIES"):
-        self.proxies = _build_proxies(countries_env_key)
-        print(f"[proxy] {len(self.proxies)} proxies from env ({countries_env_key})")
+    def __init__(self, path):
+        self.proxies = []
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                parts = line.split(":")
+                if len(parts) != 4:
+                    continue
+                ip, port, user, pwd = parts
+                self.proxies.append({
+                    "server":   f"http://{ip}:{port}",
+                    "username": user,
+                    "password": pwd,
+                })
+        if not self.proxies:
+            raise ValueError(f"No valid proxies found in {path}")
+        print(f"[proxy] loaded {len(self.proxies)} proxies from {path}")
 
     def pick(self):
-        p = random.choice(self.proxies)
-        print(f"[proxy] using {p['server']} user={p['username']}")
-        return p
+        return random.choice(self.proxies)
 
     def __len__(self):
         return len(self.proxies)

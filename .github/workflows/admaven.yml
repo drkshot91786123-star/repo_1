@@ -49,6 +49,13 @@ jobs:
           playwright install chromium
           playwright install-deps chromium
 
+      - name: Write proxy files
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          mkdir -p config
+          echo "${{ secrets.PROXIES }}" > config/Proxies.txt
+          echo "${{ secrets.PROXIES_ANY }}" > config/Proxies_Any.txt
+
       - name: Run AdMaven job 1
         if: steps.gate.outputs.run == 'true'
         env:
@@ -56,11 +63,6 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           GIST_ID: ${{ secrets.GIST_ID }}
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
-          EVOMI_HOST: ${{ secrets.EVOMI_HOST }}
-          EVOMI_PORT: ${{ secrets.EVOMI_PORT }}
-          EVOMI_USER: ${{ secrets.EVOMI_USER }}
-          EVOMI_PASS: ${{ secrets.EVOMI_PASS }}
-          EVOMI_HIGH_CPM_COUNTRIES: ${{ secrets.EVOMI_HIGH_CPM_COUNTRIES }}
         run: |
           COUNT=${{ github.event.inputs.count || '200' }}
           CONC=${{ github.event.inputs.concurrency || '10' }}
@@ -108,6 +110,13 @@ jobs:
           playwright install chromium
           playwright install-deps chromium
 
+      - name: Write proxy files
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          mkdir -p config
+          echo "${{ secrets.PROXIES }}" > config/Proxies.txt
+          echo "${{ secrets.PROXIES_ANY }}" > config/Proxies_Any.txt
+
       - name: Run AdMaven job 2
         if: steps.gate.outputs.run == 'true'
         env:
@@ -115,11 +124,6 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           GIST_ID: ${{ secrets.GIST_ID }}
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
-          EVOMI_HOST: ${{ secrets.EVOMI_HOST }}
-          EVOMI_PORT: ${{ secrets.EVOMI_PORT }}
-          EVOMI_USER: ${{ secrets.EVOMI_USER }}
-          EVOMI_PASS: ${{ secrets.EVOMI_PASS }}
-          EVOMI_HIGH_CPM_COUNTRIES: ${{ secrets.EVOMI_HIGH_CPM_COUNTRIES }}
         run: |
           COUNT=${{ github.event.inputs.count || '200' }}
           CONC=${{ github.event.inputs.concurrency || '10' }}

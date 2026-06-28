@@ -50,13 +50,10 @@ LOGS_FILE = os.path.join(ADMAVEN_DIR, "logs", "run_logs.jsonl")
 
 
 class ProxyPoolMixed:
-    """Blend two proxy pools: 70% high-CPM countries, 30% any countries."""
-    def __init__(self):
-        self.primary = ProxyPool("EVOMI_HIGH_CPM_COUNTRIES")
-        try:
-            self.secondary = ProxyPool("EVOMI_ANY_COUNTRIES")
-        except Exception:
-            self.secondary = None
+    """Blend two proxy pools: 70% from primary (high-CPM countries), 30% from secondary (any)."""
+    def __init__(self, primary_file, secondary_file=None):
+        self.primary = ProxyPool(primary_file)
+        self.secondary = ProxyPool(secondary_file) if secondary_file else None
 
     def pick(self):
         if self.secondary and random.random() < 0.30:
@@ -170,10 +167,11 @@ async def main_async(args):
     pool = None
     if not args.no_proxy:
         try:
-            pool = ProxyPoolMixed()
-            print(f"[proxy] 70% high-CPM, 30% any")
+            secondary_file = os.path.join(ROOT_DIR, "config", "Proxies_Any.txt")
+            pool = ProxyPoolMixed(args.proxy_file, secondary_file if os.path.exists(secondary_file) else None)
+            print(f"[proxy] 70% from {os.path.basename(args.proxy_file)}, 30% from Proxies_Any.txt")
         except Exception as e:
-            print(f"[warn] could not load proxies: {e}")
+            print(f"[warn] could not load proxy file: {e}")
 
     if args.headed:
         headless = False
@@ -268,8 +266,8 @@ def main():
                     help="route traffic through Tor (slower but hides real IP from proxy provider)")
     ap.add_argument("--logs", action="store_true",
                     help="append device+IP log entry to run_logs.jsonl after each instance")
-    ap.add_argument("--proxy-file", default=None,
-                    help="(unused — proxies loaded from EVOMI_* env vars)")
+    ap.add_argument("--proxy-file", default=DEFAULT_PROXIES,
+                    help="path to proxy list file")
     args = ap.parse_args()
 
     # args.tor is already set by --tor flag (default False)
