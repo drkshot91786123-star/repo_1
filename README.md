@@ -190,4 +190,4 @@ Both are detected automatically per run.
 
 
 
-python3 scripts/auto_locker.py --count 20 --log --headed
+python3 run.py --admaven --count 200 --concurrency 10 --logs

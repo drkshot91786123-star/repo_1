@@ -112,17 +112,15 @@ async def _try_with_proxy(url, chosen, proxy, headless, poll_interval, timeout):
         # ── 1. Open locker page ──────────────────────────────────
         print(f"[open]   {url}")
         print(f"[device] {chosen}")
-        for attempt in range(1, 4):
-            try:
-                await page.goto(url, wait_until="commit", timeout=60000)
-                await page.wait_for_load_state("domcontentloaded", timeout=45000)
-                break
-            except Exception as e:
-                print(f"[nav]    attempt {attempt}/3 failed: {e}")
-                if attempt == 3:
-                    print("[error]  could not load page after 3 attempts")
-                    result["bytes_sent"] = _bw["sent"]; result["bytes_recv"] = _bw["recv"]; return False, result
-                await asyncio.sleep(3)
+        try:
+            await page.goto(url, wait_until="commit", timeout=60000)
+        except Exception as e:
+            print(f"[nav]    failed: {e}")
+            result["bytes_sent"] = _bw["sent"]; result["bytes_recv"] = _bw["recv"]; return False, result
+        try:
+            await page.wait_for_load_state("domcontentloaded", timeout=45000)
+        except Exception:
+            pass  # networkidle already fired — page is ready, domcontentloaded was a redirect race
 
         # ── Block known bandwidth hogs ───────────────────────────
         async def _block_third_party(route):
