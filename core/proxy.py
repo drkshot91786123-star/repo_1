@@ -16,7 +16,7 @@ def _build_proxies(countries_env_key):
     countries = [c.strip() for c in os.environ.get(countries_env_key, "").split(",") if c.strip()]
     if countries:
         return [
-            {"server": f"http://{host}:{port}", "username": f"{user}_country-{c}", "password": pwd}
+            {"server": f"http://{host}:{port}", "username": user, "password": f"{pwd}_country-{c}"}
             for c in countries
         ]
     # No countries = Evomi picks any country (bare credentials, no suffix)
