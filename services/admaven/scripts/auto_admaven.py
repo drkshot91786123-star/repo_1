@@ -42,45 +42,11 @@ _spec = _ilu.spec_from_file_location("create_locker", os.path.join(SCRIPT_DIR, "
 _mod = _ilu.module_from_spec(_spec)
 _spec.loader.exec_module(_mod)
 create_locker = _mod.create_locker
-DEFAULT_PROXIES = os.path.join(ROOT_DIR, "config", "Proxies.txt")
 LINKS_FILE = os.path.join(ADMAVEN_DIR, "daily_links.json")
 DESTINATIONS_FILE = os.path.join(ADMAVEN_DIR, "destinations.txt")
 
-LOGS_DIR = os.path.join(ADMAVEN_DIR, "logs")
-os.makedirs(LOGS_DIR, exist_ok=True)
-
-LOGS_FILE   = os.path.join(LOGS_DIR, "run_logs.jsonl")
-CONSOLE_LOG = os.path.join(LOGS_DIR, "console.log")  # set per mode in main()
-
-import builtins
-_orig_print = builtins.print
-_console_fh = None
-
-def _tee_print(*args, **kwargs):
-    _orig_print(*args, **kwargs)
-    if _console_fh:
-        kw = {k: v for k, v in kwargs.items() if k != "file"}
-        _orig_print(*args, file=_console_fh, **kw)
-        _console_fh.flush()
-
-builtins.print = _tee_print
-
-
-def _setup_console_log(mode):
-    global _console_fh, LOGS_FILE
-    log_name = f"console_{mode}.log"
-    _console_fh = open(os.path.join(LOGS_DIR, log_name), "a")
-    LOGS_FILE = os.path.join(LOGS_DIR, f"run_logs_{mode}.jsonl")
-    print(f"\n{'='*50}")
-    print(f"MODE: {mode.upper()}")
-    print(f"LOGS: {log_name} / run_logs_{mode}.jsonl")
-    print(f"ENV: EVOMI_HOST={os.environ.get('EVOMI_HOST','<not set>')}")
-    print(f"     EVOMI_PORT={os.environ.get('EVOMI_PORT','<not set>')}")
-    print(f"     EVOMI_USER={os.environ.get('EVOMI_USER','<not set>')}")
-    print(f"     EVOMI_PASS={'***' if os.environ.get('EVOMI_PASS') else '<not set>'}")
-    print(f"     EVOMI_HIGH_CPM_COUNTRIES={os.environ.get('EVOMI_HIGH_CPM_COUNTRIES','<not set>')}")
-    print(f"     EVOMI_ANY_COUNTRIES={os.environ.get('EVOMI_ANY_COUNTRIES','<not set>')}")
-    print(f"{'='*50}\n")
+os.makedirs(os.path.join(ADMAVEN_DIR, "logs"), exist_ok=True)
+LOGS_FILE = os.path.join(ADMAVEN_DIR, "logs", "run_logs.jsonl")
 
 
 class ProxyPoolMixed:
@@ -99,7 +65,6 @@ class ProxyPoolMixed:
         else:
             proxy = self.primary.pick()
             proxy["_pool"] = "primary"
-        self.last_picked = proxy
         return proxy
 
     def __len__(self):
@@ -179,24 +144,18 @@ async def run_instance(idx, url, device, use_tor, headless, pool, logs=False, se
         print(f"\n[#{idx}] {status} device={result['device']}  ip={result['ip']}  redirect={result['redirect_url']}")
         if logs:
             bw_kb = (result.get("bytes_sent", 0) + result.get("bytes_recv", 0)) / 1024
-            proxy_user = pool.last_picked.get("username", "none") if pool and hasattr(pool, "last_picked") else "none"
-            proxy_pass = pool.last_picked.get("password", "") if pool and hasattr(pool, "last_picked") else ""
-            country = proxy_pass.split("_country-")[-1] if "_country-" in proxy_pass else "any"
             entry = {
-                "ts":         datetime.now(tz=_IST).strftime("%Y-%m-%d %I:%M:%S %p IST"),
-                "instance":   idx,
-                "device":     result["device"],
-                "ip":         result["ip"],
-                "proxy_user": proxy_user,
-                "country":    country,
-                "pool":       result.get("pool_source", "unknown"),
-                "url":        url,
-                "redirect":   redirect,
-                "success":    redirected,
-                "bw_kb":      round(bw_kb, 1),
+                "ts": datetime.now(tz=_IST).strftime("%Y-%m-%d %I:%M:%S %p IST"),
+                "instance": idx,
+                "device": result["device"],
+                "ip": result["ip"],
+                "url": url,
+                "redirect": redirect,
+                "success": redirected,
+                "bw_kb": round(bw_kb, 1),
             }
             write_log(entry)
-            print(f"[#{idx}] logged  country={country}  pool={entry['pool']}  bw={bw_kb:.1f}KB")
+            print(f"[#{idx}] logged → {LOGS_FILE}  ({bw_kb:.1f} KB)")
         return result
 
 
@@ -309,12 +268,7 @@ def main():
                     help="route traffic through Tor (slower but hides real IP from proxy provider)")
     ap.add_argument("--logs", action="store_true",
                     help="append device+IP log entry to run_logs.jsonl after each instance")
-    ap.add_argument("--proxy-file", default=DEFAULT_PROXIES,
-                    help="path to proxy list file")
-    ap.add_argument("--mode", default="env", choices=["env", "file"],
-                    help="proxy mode label for log files (default: env)")
     args = ap.parse_args()
-    _setup_console_log(args.mode)
 
     # args.tor is already set by --tor flag (default False)
     asyncio.run(main_async(args))
