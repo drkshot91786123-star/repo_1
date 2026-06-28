@@ -45,7 +45,7 @@ jobs:
       - name: Install dependencies
         if: steps.gate.outputs.run == 'true'
         run: |
-          pip install playwright
+          pip install playwright requests
           playwright install chromium
           playwright install-deps chromium
 
@@ -99,7 +99,7 @@ jobs:
       - name: Install dependencies
         if: steps.gate.outputs.run == 'true'
         run: |
-          pip install playwright
+          pip install playwright requests
           playwright install chromium
           playwright install-deps chromium
 
