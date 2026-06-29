@@ -47,7 +47,8 @@ LINKS_FILE = os.path.join(ADMAVEN_DIR, "daily_links.json")
 DESTINATIONS_FILE = os.path.join(ADMAVEN_DIR, "destinations.txt")
 
 os.makedirs(os.path.join(ADMAVEN_DIR, "logs"), exist_ok=True)
-LOGS_FILE = os.path.join(ADMAVEN_DIR, "logs", "run_logs.jsonl")
+_run_id = os.environ.get("GITHUB_RUN_NUMBER") or datetime.now(tz=timezone(timedelta(hours=5, minutes=30))).strftime("%Y%m%d_%H%M%S")
+LOGS_FILE = os.path.join(ADMAVEN_DIR, "logs", f"run_logs_{_run_id}.jsonl")
 
 
 class ProxyPoolMixed:

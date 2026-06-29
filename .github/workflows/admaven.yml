@@ -65,7 +65,7 @@ jobs:
         run: |
           INPUT_COUNT="${{ github.event.inputs.count }}"
           COUNT=${INPUT_COUNT:-$((RANDOM % 11 + 42))}
-          CONC=${{ github.event.inputs.concurrency || '10' }}
+          CONC=${{ github.event.inputs.concurrency || '15' }}
           sleep $((RANDOM % 1800))
           python3 run.py --admaven --count $COUNT --concurrency $CONC --logs
 
@@ -127,7 +127,7 @@ jobs:
         run: |
           INPUT_COUNT="${{ github.event.inputs.count }}"
           COUNT=${INPUT_COUNT:-$((RANDOM % 11 + 42))}
-          CONC=${{ github.event.inputs.concurrency || '10' }}
+          CONC=${{ github.event.inputs.concurrency || '15' }}
           sleep $((RANDOM % 1800))
           python3 run.py --admaven --count $COUNT --concurrency $CONC --logs
 
