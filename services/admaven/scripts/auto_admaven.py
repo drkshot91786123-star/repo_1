@@ -223,7 +223,8 @@ async def main_async(args):
         url = random.choice(links)
         t = asyncio.ensure_future(
             run_instance(idx, url, args.device, args.tor,
-                         headless, pool, logs=args.logs, sem=sem, start_delay=0)
+                         headless, pool, logs=args.logs, sem=sem,
+                         start_delay=random.uniform(0, 60))
         )
         active.add(t)
         return t
@@ -241,6 +242,7 @@ async def main_async(args):
             except Exception:
                 failed += 1
                 if _needs_more():
+                    await asyncio.sleep(random.uniform(3, 6))
                     await _spawn()
                 continue
             total_bytes += result.get("bytes_sent", 0) + result.get("bytes_recv", 0)
@@ -256,7 +258,7 @@ async def main_async(args):
             else:
                 failed += 1
             if _needs_more():
-                await asyncio.sleep(random.uniform(2, 5))
+                await asyncio.sleep(random.uniform(3, 6))
                 await _spawn()
 
     total_attempts = succeeded + failed + total_skipped

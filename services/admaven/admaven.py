@@ -189,15 +189,16 @@ async def _try_with_proxy(url, chosen, proxy, headless, poll_interval, timeout):
 
         # ── 3. Click each task, close new tab instantly ──────────
         ctx.on("page", lambda p: asyncio.ensure_future(p.close()))
-        for i, row in enumerate(task_rows):
+        for i, row in enumerate(random.sample(task_rows, len(task_rows))):
             name_el = await row.query_selector(NAME_SEL)
             name = (await name_el.inner_text()).strip() if name_el else f"Task {i+1}"
             print(f"[click]  task {i+1}/{n}: {name}")
+            await asyncio.sleep(random.uniform(2, 8))   # dwell before click
             try:
                 await row.click()
             except Exception as e:
                 print(f"  → tab error: {e}")
-            await asyncio.sleep(random.uniform(1.5, 4.0))
+            await asyncio.sleep(random.uniform(1, 4))   # wait after tab opens
 
         # ── 4. Poll until all tasks done ─────────────────────────
         print(f"[wait]   polling every {poll_interval}s (max {timeout}s)...")

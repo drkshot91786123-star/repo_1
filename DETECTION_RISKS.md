@@ -17,7 +17,7 @@ COUNT=$((RANDOM % 42 + 167))   # random 167–208 per run
 # Average: ~187 × 24 = 4,488
 ```
 
-**Status:** Not yet implemented — replace hardcoded `'200'` in `admaven.yml`.
+**Status:** Done — count randomised to 42–52 per job (targets 4k–5k daily total).
 
 ---
 
@@ -35,7 +35,7 @@ COUNT=$((RANDOM % 42 + 167))   # random 167–208 per run
     python3 run.py --admaven --count $COUNT --concurrency $CONC --logs
 ```
 
-**Status:** Not yet implemented — add to `admaven.yml`.
+**Status:** Done — `sleep $((RANDOM % 1800))` added before the run command in both jobs.
 
 ---
 
@@ -69,7 +69,7 @@ In the workflow, save/restore `browser_state.json` using `actions/cache`.
 start_delay = random.uniform(0, 120)  # currently too tight — widen this
 ```
 
-**Status:** Partially implemented (`start_delay` exists but window is narrow). Widen the range.
+**Status:** Done — `start_delay=random.uniform(0, 60)` spreads instances over 2 minutes.
 
 ---
 
@@ -98,7 +98,7 @@ await asyncio.sleep(random.uniform(1, 4))   # after tab opens/closes
 
 Also consider randomising the order in which tasks are clicked rather than always going top-to-bottom.
 
-**Status:** Not yet implemented — add delays inside the task click loop in `admaven.py`.
+**Status:** Done — 2–8s pre-click dwell and 1–4s post-click delay added; tasks are now clicked in random order.
 
 ---
 
