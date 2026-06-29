@@ -204,15 +204,18 @@ async def main_async(args):
     sem = asyncio.Semaphore(concurrency)
     print(f"[run]  {count} instance(s) target, max {concurrency} concurrent\n")
 
-    completed = 0   # non-skipped attempts
     succeeded = 0
+    failed = 0
     total_skipped = 0
     total_bytes = 0
-    primary_success = 0  # successes from high-CPM countries
-    secondary_success = 0  # successes from other countries
+    primary_success = 0
+    secondary_success = 0
     idx = 0
     active = set()
     proxy_pool_map = {}  # maps task idx to pool source
+
+    def _needs_more():
+        return succeeded + len(active) < count
 
     async def _spawn():
         nonlocal idx
@@ -236,30 +239,29 @@ async def main_async(args):
             try:
                 result = t.result()
             except Exception:
-                completed += 1  # exception counts as an attempt
-                if completed + len(active) < count:
+                failed += 1
+                if _needs_more():
                     await _spawn()
                 continue
+            total_bytes += result.get("bytes_sent", 0) + result.get("bytes_recv", 0)
             if result.get("skipped"):
                 total_skipped += 1
-                if completed + len(active) < count:
-                    await asyncio.sleep(random.uniform(2, 5))
-                    await _spawn()
+            elif result.get("success"):
+                succeeded += 1
+                pool_src = result.get("pool_source", "primary")
+                if pool_src == "secondary":
+                    secondary_success += 1
+                else:
+                    primary_success += 1
             else:
-                completed += 1
-                total_bytes += result.get("bytes_sent", 0) + result.get("bytes_recv", 0)
-                if result.get("success"):
-                    succeeded += 1
-                    pool_src = result.get("pool_source", "primary")
-                    if pool_src == "secondary":
-                        secondary_success += 1
-                    else:
-                        primary_success += 1
-                if completed + len(active) < count:
-                    await _spawn()
+                failed += 1
+            if _needs_more():
+                await asyncio.sleep(random.uniform(2, 5))
+                await _spawn()
 
-    avg_kb = (total_bytes / completed / 1024) if completed else 0
-    print(f"\n[done] {succeeded}/{count} succeeded  ({total_skipped} skipped)")
+    total_attempts = succeeded + failed + total_skipped
+    avg_kb = (total_bytes / total_attempts / 1024) if total_attempts else 0
+    print(f"\n[done] {succeeded}/{count} succeeded  ({total_attempts} total: {total_skipped} skipped, {failed} failed)")
     print(f"[bw]   {total_bytes/1024/1024:.2f} MB total  ·  {avg_kb:.1f} KB/run avg")
     if pool:
         print(f"[pool] {primary_success} high, {secondary_success} other")
