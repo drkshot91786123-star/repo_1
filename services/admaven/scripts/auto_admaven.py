@@ -170,6 +170,7 @@ async def run_instance(idx, url, device, use_tor, headless, pool, logs=False, se
                 "success":  redirected,
                 "reason":   None if redirected else result.get("reason", "unknown"),
                 "error":    result.get("error"),
+                "video_reloads": result.get("video_reloads", 0),
                 "bw_kb":    round(bw_kb, 1),
             }
             write_log(entry)
@@ -214,9 +215,10 @@ async def main_async(args):
     idx = 0
     active = set()
     proxy_pool_map = {}  # maps task idx to pool source
+    max_attempts = count * 6  # cap total spawns to prevent runaway on high video-skip rate
 
     def _needs_more():
-        return succeeded + len(active) < count
+        return succeeded + len(active) < count and idx < max_attempts
 
     async def _spawn():
         nonlocal idx

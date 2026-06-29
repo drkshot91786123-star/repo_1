@@ -32,7 +32,7 @@
 - Produces: GHA workflow that runs 2 parallel jobs, each calling `python3 run.py --admaven`
 - Consumes: `config/Proxies.txt` (from repo), `ADMAVEN_PROXY` secret (optional override)
 
-- [ ] **Step 1: Create the workflow file**
+- [x] **Step 1: Create the workflow file**
 
 ```yaml
 # .github/workflows/admaven.yml
@@ -122,7 +122,7 @@ jobs:
           path: services/admaven/logs/run_logs.jsonl
 ```
 
-- [ ] **Step 2: Verify workflow syntax locally**
+- [x] **Step 2: Verify workflow syntax locally**
 
 ```bash
 pip install actionlint  # or brew install actionlint
@@ -130,12 +130,9 @@ actionlint .github/workflows/admaven.yml
 ```
 Expected: no errors
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
-```bash
-git add .github/workflows/admaven.yml
-git commit -m "feat: add GHA admaven workflow with 2 parallel jobs"
-```
+> **Note:** Final implementation differs from plan — both repos use the same `* * * * *` cron (every hour) with a `REPO_SLOT` secret gate (slot 1 = even hours, slot 2 = odd hours). Count randomised to 42–52 per job, concurrency 15, random 0–30 min sleep before run, Evomi residential proxy instead of `--no-proxy`.
 
 ---
 
@@ -147,7 +144,7 @@ git commit -m "feat: add GHA admaven workflow with 2 parallel jobs"
 **Interfaces:**
 - Same as Task 1 except cron offset is `30 */2 * * *`
 
-- [ ] **Step 1: Copy the workflow from Task 1, change only the cron line**
+- [x] **Step 1: Copy the workflow from Task 1, change only the cron line**
 
 ```yaml
 on:
@@ -157,7 +154,7 @@ on:
 
 Everything else identical to Task 1.
 
-- [ ] **Step 2: Push to Repo 2**
+- [x] **Step 2: Push to Repo 2**
 
 ```bash
 # In repo 2's directory
@@ -166,7 +163,7 @@ git commit -m "feat: add GHA admaven workflow (staggered at :30)"
 git push
 ```
 
-- [ ] **Step 3: Manually trigger both workflows in GitHub UI**
+- [x] **Step 3: Manually trigger both workflows in GitHub UI**
 
 Go to `Actions → AdMaven Automation → Run workflow` in both repos.
 Verify both jobs start, install playwright, and run without import errors.

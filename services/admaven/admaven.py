@@ -78,7 +78,7 @@ async def _try_with_proxy(url, chosen, proxy, headless, poll_interval, timeout):
     returns (False, result) so the caller can retry with a different proxy.
     """
     result = {"device": chosen, "ip": None, "redirect_url": None, "success": False,
-              "reason": None, "error": None, "bytes_sent": 0, "bytes_recv": 0}
+              "reason": None, "error": None, "video_reloads": 0, "bytes_sent": 0, "bytes_recv": 0}
     _bw = {"sent": 0, "recv": 0}
 
     async def _is_error_overlay(page):
@@ -163,16 +163,34 @@ async def _try_with_proxy(url, chosen, proxy, headless, poll_interval, timeout):
             result["reason"] = "no_tasks_empty"
             result["bytes_sent"] = _bw["sent"]; result["bytes_recv"] = _bw["recv"]; return False, result
 
-        # Skip lockers with video tasks — can't auto-complete
-        task_names = []
-        for row in task_rows:
-            el = await row.query_selector(NAME_SEL)
-            task_names.append((await el.inner_text()).strip() if el else "")
-        if any("video" in n.lower() for n in task_names):
-            print(f"[skip]   video task detected {task_names} — skipping instance")
-            result["reason"] = "video_task_skipped"
-            result["skipped"] = True
-            result["bytes_sent"] = _bw["sent"]; result["bytes_recv"] = _bw["recv"]; return False, result
+        # If video tasks detected, reload up to 3 times hoping for different tasks
+        for reload_attempt in range(4):
+            task_names = []
+            for row in task_rows:
+                el = await row.query_selector(NAME_SEL)
+                task_names.append((await el.inner_text()).strip() if el else "")
+            if not any("video" in n.lower() for n in task_names):
+                break
+            if reload_attempt == 3:
+                print(f"[skip]   video task persists after 3 reloads {task_names} — skipping instance")
+                result["reason"] = "video_task_skipped"
+                result["skipped"] = True
+                result["bytes_sent"] = _bw["sent"]; result["bytes_recv"] = _bw["recv"]; return False, result
+            result["video_reloads"] += 1
+            print(f"[reload] video task detected {task_names} — reloading (attempt {reload_attempt + 1}/3)")
+            await asyncio.sleep(random.uniform(2, 4))
+            try:
+                await page.goto(url, wait_until="commit", timeout=60000)
+                try:
+                    await page.wait_for_load_state("domcontentloaded", timeout=45000)
+                except Exception:
+                    pass
+            except Exception as e:
+                print(f"[reload] failed: {e}")
+                result["reason"] = "nav_failed"
+                result["error"] = str(e)
+                result["bytes_sent"] = _bw["sent"]; result["bytes_recv"] = _bw["recv"]; return False, result
+            task_rows = await page.query_selector_all(TASK_SEL)
 
         # ── Resolve exit IP ──────────────────────────────────────
         try:
