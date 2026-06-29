@@ -131,9 +131,9 @@ class MobileBrowser:
                 proxy_dict = {k: v for k, v in self.proxy.items() if v}
             else:
                 proxy_dict = {"server": self.proxy}
-            # Embed creds in the URL for all devices — WebKit ignores username/password
-            # keys, and Chromium on Linux (GHA) silently drops them in headless mode.
-            if "username" in proxy_dict:
+            # WebKit ignores username/password keys and falls back to macOS
+            # system-level auth dialog. Embed creds in the URL instead.
+            if "iPhone" in self.device and "username" in proxy_dict:
                 from urllib.parse import quote
                 u = quote(proxy_dict["username"], safe="")
                 p = quote(proxy_dict.get("password", ""), safe="")

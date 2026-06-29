@@ -78,7 +78,7 @@ async def _try_with_proxy(url, chosen, proxy, headless, poll_interval, timeout):
     returns (False, result) so the caller can retry with a different proxy.
     """
     result = {"device": chosen, "ip": None, "redirect_url": None, "success": False,
-              "bytes_sent": 0, "bytes_recv": 0}
+              "reason": None, "error": None, "bytes_sent": 0, "bytes_recv": 0}
     _bw = {"sent": 0, "recv": 0}
 
     async def _is_error_overlay(page):
@@ -116,6 +116,8 @@ async def _try_with_proxy(url, chosen, proxy, headless, poll_interval, timeout):
             await page.goto(url, wait_until="commit", timeout=60000)
         except Exception as e:
             print(f"[nav]    failed: {e}")
+            result["reason"] = "nav_failed"
+            result["error"] = str(e)
             result["bytes_sent"] = _bw["sent"]; result["bytes_recv"] = _bw["recv"]; return False, result
         try:
             await page.wait_for_load_state("domcontentloaded", timeout=45000)
@@ -147,15 +149,18 @@ async def _try_with_proxy(url, chosen, proxy, headless, poll_interval, timeout):
             }""", timeout=60000)
         except Exception:
             print("[blank]  no tasks found — proxy likely blocked by site")
+            result["reason"] = "no_tasks_timeout"
             result["bytes_sent"] = _bw["sent"]; result["bytes_recv"] = _bw["recv"]; return False, result
         if await _is_error_overlay(page):
             print("[error]  overlay detected — aborting instance")
+            result["reason"] = "site_error_overlay"
             result["skipped"] = True
             result["bytes_sent"] = _bw["sent"]; result["bytes_recv"] = _bw["recv"]; return False, result
 
         task_rows = await page.query_selector_all(TASK_SEL)
         if not task_rows:
             print("[blank]  task selector matched 0 rows — proxy likely blocked")
+            result["reason"] = "no_tasks_empty"
             result["bytes_sent"] = _bw["sent"]; result["bytes_recv"] = _bw["recv"]; return False, result
 
         # Skip lockers with video tasks — can't auto-complete
@@ -165,6 +170,7 @@ async def _try_with_proxy(url, chosen, proxy, headless, poll_interval, timeout):
             task_names.append((await el.inner_text()).strip() if el else "")
         if any("video" in n.lower() for n in task_names):
             print(f"[skip]   video task detected {task_names} — skipping instance")
+            result["reason"] = "video_task_skipped"
             result["skipped"] = True
             result["bytes_sent"] = _bw["sent"]; result["bytes_recv"] = _bw["recv"]; return False, result
 
@@ -206,12 +212,14 @@ async def _try_with_proxy(url, chosen, proxy, headless, poll_interval, timeout):
                 break
             if await _is_error_overlay(page):
                 print("[error]  'Something went wrong' overlay detected during poll — aborting instance")
+                result["reason"] = "site_error_overlay"
                 result["skipped"] = True
                 result["bytes_sent"] = _bw["sent"]; result["bytes_recv"] = _bw["recv"]; return False, result
             await asyncio.sleep(poll_interval)
             elapsed += poll_interval
         else:
             print("[timeout] tasks did not complete — aborting")
+            result["reason"] = "tasks_poll_timeout"
             return True, result  # page loaded fine, just slow tasks — don't retry proxy
 
         print("[done]   all tasks complete")
@@ -236,6 +244,7 @@ async def _try_with_proxy(url, chosen, proxy, headless, poll_interval, timeout):
             }""")
             if not enabled:
                 print("[error]  unlock button never enabled")
+                result["reason"] = "unlock_btn_disabled"
                 return True, result
 
         await page.click(UNLOCK_SEL)

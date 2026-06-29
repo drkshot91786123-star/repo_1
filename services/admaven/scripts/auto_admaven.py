@@ -167,6 +167,8 @@ async def run_instance(idx, url, device, use_tor, headless, pool, logs=False, se
                 "url":      url,
                 "redirect": redirect,
                 "success":  redirected,
+                "reason":   None if redirected else result.get("reason", "unknown"),
+                "error":    result.get("error"),
                 "bw_kb":    round(bw_kb, 1),
             }
             write_log(entry)
