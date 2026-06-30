@@ -227,7 +227,7 @@ async def main_async(args):
         t = asyncio.ensure_future(
             run_instance(idx, url, args.device, args.tor,
                          headless, pool, logs=args.logs, sem=sem,
-                         start_delay=random.uniform(0, 60))
+                         start_delay=random.uniform(0, 10))
         )
         active.add(t)
         return t
