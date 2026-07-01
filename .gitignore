@@ -1,1 +1,5 @@
 .env
+dashboard/.streamlit/secrets.toml
+dashboard/__pycache__/
+dashboard/pages/__pycache__/
+dashboard/lib/__pycache__/
