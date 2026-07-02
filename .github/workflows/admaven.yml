@@ -20,37 +20,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check if this slot should run this hour
-        id: gate
-        run: |
-          HOUR=$(date -u +%-H)
-          SLOT="${{ secrets.REPO_SLOT }}"
-          EVENT="${{ github.event_name }}"
-          if [ "$EVENT" = "workflow_dispatch" ]; then
-            echo "run=true" >> $GITHUB_OUTPUT
-          elif [ "$SLOT" = "1" ] && [ $((HOUR % 2)) -eq 0 ]; then
-            echo "run=true" >> $GITHUB_OUTPUT
-          elif [ "$SLOT" = "2" ] && [ $((HOUR % 2)) -eq 1 ]; then
-            echo "run=true" >> $GITHUB_OUTPUT
-          else
-            echo "run=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Set up Python
-        if: steps.gate.outputs.run == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Install dependencies
-        if: steps.gate.outputs.run == 'true'
         run: |
           pip install playwright requests
           playwright install chromium
           playwright install-deps chromium
 
       - name: Run AdMaven job 1
-        if: steps.gate.outputs.run == 'true'
         env:
           EVOMI_HOST: ${{ secrets.EVOMI_HOST }}
           EVOMI_PORT: ${{ secrets.EVOMI_PORT }}
@@ -70,7 +51,7 @@ jobs:
           python3 run.py --admaven --count $COUNT --concurrency $CONC --logs
 
       - name: Upload logs
-        if: always() && steps.gate.outputs.run == 'true'
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: run-logs-job1-${{ github.run_number }}
@@ -82,37 +63,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check if this slot should run this hour
-        id: gate
-        run: |
-          HOUR=$(date -u +%-H)
-          SLOT="${{ secrets.REPO_SLOT }}"
-          EVENT="${{ github.event_name }}"
-          if [ "$EVENT" = "workflow_dispatch" ]; then
-            echo "run=true" >> $GITHUB_OUTPUT
-          elif [ "$SLOT" = "1" ] && [ $((HOUR % 2)) -eq 0 ]; then
-            echo "run=true" >> $GITHUB_OUTPUT
-          elif [ "$SLOT" = "2" ] && [ $((HOUR % 2)) -eq 1 ]; then
-            echo "run=true" >> $GITHUB_OUTPUT
-          else
-            echo "run=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Set up Python
-        if: steps.gate.outputs.run == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Install dependencies
-        if: steps.gate.outputs.run == 'true'
         run: |
           pip install playwright requests
           playwright install chromium
           playwright install-deps chromium
 
       - name: Run AdMaven job 2
-        if: steps.gate.outputs.run == 'true'
         env:
           EVOMI_HOST: ${{ secrets.EVOMI_HOST }}
           EVOMI_PORT: ${{ secrets.EVOMI_PORT }}
@@ -132,7 +94,7 @@ jobs:
           python3 run.py --admaven --count $COUNT --concurrency $CONC --logs
 
       - name: Upload logs
-        if: always() && steps.gate.outputs.run == 'true'
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: run-logs-job2-${{ github.run_number }}
