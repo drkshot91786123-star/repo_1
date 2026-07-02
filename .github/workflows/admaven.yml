@@ -8,7 +8,7 @@ on:
     inputs:
       count:
         description: 'Runs per job'
-        default: '200'
+        default: '100'
       concurrency:
         description: 'Concurrent browsers'
         default: '10'
@@ -64,9 +64,9 @@ jobs:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
         run: |
           INPUT_COUNT="${{ github.event.inputs.count }}"
-          COUNT=${INPUT_COUNT:-$((RANDOM % 11 + 42))}
+          COUNT=${INPUT_COUNT:-$((RANDOM % 11 + 95))}
           CONC=${{ github.event.inputs.concurrency || '10' }}
-          sleep $((RANDOM % 300))
+          sleep $((RANDOM % 180))
           python3 run.py --admaven --count $COUNT --concurrency $CONC --logs
 
       - name: Upload logs
@@ -126,9 +126,9 @@ jobs:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
         run: |
           INPUT_COUNT="${{ github.event.inputs.count }}"
-          COUNT=${INPUT_COUNT:-$((RANDOM % 11 + 42))}
+          COUNT=${INPUT_COUNT:-$((RANDOM % 11 + 95))}
           CONC=${{ github.event.inputs.concurrency || '10' }}
-          sleep $((RANDOM % 300))
+          sleep $((RANDOM % 180))
           python3 run.py --admaven --count $COUNT --concurrency $CONC --logs
 
       - name: Upload logs

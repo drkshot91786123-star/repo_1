@@ -20,7 +20,7 @@ while true; do
     --display-name "website-automation" \
     --image-id $IMAGE \
     --shape "VM.Standard.A1.Flex" \
-    --shape-config '{"ocpus":4,"memoryInGBs":24}' \
+    --shape-config '{"ocpus":2,"memoryInGBs":12}' \
     --subnet-id $SUBNET \
     --assign-public-ip true \
     --ssh-authorized-keys-file ~/.ssh/oracle_automation.pub \
