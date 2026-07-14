@@ -27,8 +27,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install playwright requests
-          playwright install chromium
-          playwright install-deps chromium
+          playwright install chromium webkit
+          playwright install-deps chromium webkit
 
       - name: Run AdMaven job 1
         env:
@@ -70,8 +70,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install playwright requests
-          playwright install chromium
-          playwright install-deps chromium
+          playwright install chromium webkit
+          playwright install-deps chromium webkit
 
       - name: Run AdMaven job 2
         env:
@@ -113,8 +113,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install playwright requests
-          playwright install chromium
-          playwright install-deps chromium
+          playwright install chromium webkit
+          playwright install-deps chromium webkit
 
       - name: Run AdMaven job 3
         env:
@@ -156,8 +156,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install playwright requests
-          playwright install chromium
-          playwright install-deps chromium
+          playwright install chromium webkit
+          playwright install-deps chromium webkit
 
       - name: Run AdMaven job 4
         env:
