@@ -51,8 +51,8 @@ class DirectProxyChain:
     async def _handle(self, reader, writer):
         try:
             await self._relay(reader, writer)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[relay]  handle error: {type(e).__name__}: {e}")
         finally:
             writer.close()
 
@@ -120,12 +120,15 @@ class DirectProxyChain:
 
             status = resp.split(b" ", 2)[1] if b" " in resp else b"000"
             if status[:1] != b"2":
+                first_line = resp.split(b"\r\n", 1)[0].decode(errors="replace")
+                print(f"[relay]  CONNECT to {target_host}:{target_port} rejected: {first_line}")
                 s.close()
                 return None
 
             s.settimeout(None)
             return s
         except Exception as e:
+            print(f"[relay]  CONNECT to {target_host}:{target_port} failed: {type(e).__name__}: {e}")
             return None
 
 
@@ -163,8 +166,8 @@ class ProxyChain:
     async def _handle(self, reader, writer):
         try:
             await self._relay(reader, writer)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[relay]  handle error: {type(e).__name__}: {e}")
         finally:
             writer.close()
 

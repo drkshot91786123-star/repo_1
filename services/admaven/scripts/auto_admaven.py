@@ -160,13 +160,34 @@ async def run_instance(idx, url, device, use_tor, headless, pool, logs=False, se
         await asyncio.sleep(start_delay)
     async with sem:
         print(f"\n[#{idx}] starting instance {idx}  url={url}")
-        result = await run(
-            url=url,
-            device=device,
-            use_tor=use_tor,
-            headless=headless,
-            proxy_pool=pool,
-        )
+        try:
+            result = await run(
+                url=url,
+                device=device,
+                use_tor=use_tor,
+                headless=headless,
+                proxy_pool=pool,
+            )
+        except Exception as e:
+            print(f"[#{idx}] ✗ crashed: {type(e).__name__}: {e}")
+            if logs:
+                entry = {
+                    "ts":       datetime.now(tz=_IST).strftime("%Y-%m-%d %I:%M:%S %p IST"),
+                    "instance": idx,
+                    "device":   device or "?",
+                    "ip":       None,
+                    "country":  "??",
+                    "mode":     "unknown",
+                    "url":      url,
+                    "redirect": None,
+                    "success":  False,
+                    "reason":   "instance_crashed",
+                    "error":    f"{type(e).__name__}: {e}",
+                    "video_reloads": 0,
+                    "bw_kb":    0,
+                }
+                write_log(entry)
+            raise
         redirect = result["redirect_url"]
         redirected = bool(redirect and redirect != url)
         skipped = result.get("skipped", False)
