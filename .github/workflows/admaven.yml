@@ -38,6 +38,15 @@ jobs:
           EVOMI_PASS: ${{ secrets.EVOMI_PASS }}
           EVOMI_HIGH_CPM_COUNTRIES: ${{ secrets.EVOMI_HIGH_CPM_COUNTRIES }}
           EVOMI_ANY_COUNTRIES: ${{ secrets.EVOMI_ANY_COUNTRIES }}
+          GEONODE_HOST: ${{ secrets.GEONODE_HOST }}
+          GEONODE_PORT: ${{ secrets.GEONODE_PORT }}
+          GEONODE_USER: ${{ secrets.GEONODE_USER }}
+          GEONODE_PASS: ${{ secrets.GEONODE_PASS }}
+          GEONODE_HIGH_CPM_COUNTRIES: ${{ secrets.GEONODE_HIGH_CPM_COUNTRIES }}
+          GEONODE_ANY_COUNTRIES: ${{ secrets.GEONODE_ANY_COUNTRIES }}
+          PROXY_PROVIDER: ${{ secrets.PROXY_PROVIDER }}
+          ADMAVEN_API_KEY: ${{ secrets.ADMAVEN_API_KEY }}
+          ADMAVEN_SUB_ID: ${{ secrets.ADMAVEN_SUB_ID }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           GIST_ID: ${{ secrets.GIST_ID }}
@@ -81,6 +90,15 @@ jobs:
           EVOMI_PASS: ${{ secrets.EVOMI_PASS }}
           EVOMI_HIGH_CPM_COUNTRIES: ${{ secrets.EVOMI_HIGH_CPM_COUNTRIES }}
           EVOMI_ANY_COUNTRIES: ${{ secrets.EVOMI_ANY_COUNTRIES }}
+          GEONODE_HOST: ${{ secrets.GEONODE_HOST }}
+          GEONODE_PORT: ${{ secrets.GEONODE_PORT }}
+          GEONODE_USER: ${{ secrets.GEONODE_USER }}
+          GEONODE_PASS: ${{ secrets.GEONODE_PASS }}
+          GEONODE_HIGH_CPM_COUNTRIES: ${{ secrets.GEONODE_HIGH_CPM_COUNTRIES }}
+          GEONODE_ANY_COUNTRIES: ${{ secrets.GEONODE_ANY_COUNTRIES }}
+          PROXY_PROVIDER: ${{ secrets.PROXY_PROVIDER }}
+          ADMAVEN_API_KEY: ${{ secrets.ADMAVEN_API_KEY }}
+          ADMAVEN_SUB_ID: ${{ secrets.ADMAVEN_SUB_ID }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           GIST_ID: ${{ secrets.GIST_ID }}
@@ -124,6 +142,15 @@ jobs:
           EVOMI_PASS: ${{ secrets.EVOMI_PASS }}
           EVOMI_HIGH_CPM_COUNTRIES: ${{ secrets.EVOMI_HIGH_CPM_COUNTRIES }}
           EVOMI_ANY_COUNTRIES: ${{ secrets.EVOMI_ANY_COUNTRIES }}
+          GEONODE_HOST: ${{ secrets.GEONODE_HOST }}
+          GEONODE_PORT: ${{ secrets.GEONODE_PORT }}
+          GEONODE_USER: ${{ secrets.GEONODE_USER }}
+          GEONODE_PASS: ${{ secrets.GEONODE_PASS }}
+          GEONODE_HIGH_CPM_COUNTRIES: ${{ secrets.GEONODE_HIGH_CPM_COUNTRIES }}
+          GEONODE_ANY_COUNTRIES: ${{ secrets.GEONODE_ANY_COUNTRIES }}
+          PROXY_PROVIDER: ${{ secrets.PROXY_PROVIDER }}
+          ADMAVEN_API_KEY: ${{ secrets.ADMAVEN_API_KEY }}
+          ADMAVEN_SUB_ID: ${{ secrets.ADMAVEN_SUB_ID }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           GIST_ID: ${{ secrets.GIST_ID }}
@@ -167,6 +194,15 @@ jobs:
           EVOMI_PASS: ${{ secrets.EVOMI_PASS }}
           EVOMI_HIGH_CPM_COUNTRIES: ${{ secrets.EVOMI_HIGH_CPM_COUNTRIES }}
           EVOMI_ANY_COUNTRIES: ${{ secrets.EVOMI_ANY_COUNTRIES }}
+          GEONODE_HOST: ${{ secrets.GEONODE_HOST }}
+          GEONODE_PORT: ${{ secrets.GEONODE_PORT }}
+          GEONODE_USER: ${{ secrets.GEONODE_USER }}
+          GEONODE_PASS: ${{ secrets.GEONODE_PASS }}
+          GEONODE_HIGH_CPM_COUNTRIES: ${{ secrets.GEONODE_HIGH_CPM_COUNTRIES }}
+          GEONODE_ANY_COUNTRIES: ${{ secrets.GEONODE_ANY_COUNTRIES }}
+          PROXY_PROVIDER: ${{ secrets.PROXY_PROVIDER }}
+          ADMAVEN_API_KEY: ${{ secrets.ADMAVEN_API_KEY }}
+          ADMAVEN_SUB_ID: ${{ secrets.ADMAVEN_SUB_ID }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           GIST_ID: ${{ secrets.GIST_ID }}
