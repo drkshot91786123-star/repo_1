@@ -23,6 +23,7 @@ if os.path.exists(_env_file):
 
 SERVICES = {
     "--admaven":     "services.admaven.scripts.auto_admaven",
+    "--daemon":      "services.daemon.scheduler",
     "--linkvertise": "services.linkvertise.scripts.auto_linkvertise",
 }
 
@@ -45,9 +46,11 @@ def main():
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
     module_path = SERVICES[service_flag]
-    import importlib
+    import importlib, asyncio, inspect
     mod = importlib.import_module(module_path)
-    mod.main()
+    result = mod.main()
+    if inspect.iscoroutine(result):
+        asyncio.run(result)
 
 if __name__ == "__main__":
     main()

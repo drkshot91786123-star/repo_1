@@ -21,8 +21,6 @@ import urllib.request
 from datetime import datetime, timezone, timedelta
 
 _IST = timezone(timedelta(hours=5, minutes=30))
-import hashlib
-import importlib.util as _ilu
 import json
 import os
 import random
@@ -35,106 +33,49 @@ ROOT_DIR    = os.path.dirname(os.path.dirname(ADMAVEN_DIR))       # project root
 
 sys.path.insert(0, ROOT_DIR)
 
-from core.browser import ensure_playwright_browsers
-from services.admaven.admaven import run
-import random
-from core.proxy import ProxyPool
+from dotenv import load_dotenv
+load_dotenv(os.path.join(ROOT_DIR, ".env"))
 
-# import create_locker from sibling script without requiring a package __init__
-_spec = _ilu.spec_from_file_location("create_locker", os.path.join(SCRIPT_DIR, "create_locker.py"))
-_mod = _ilu.module_from_spec(_spec)
-_spec.loader.exec_module(_mod)
-create_locker = _mod.create_locker
-LINKS_FILE = os.path.join(ADMAVEN_DIR, "daily_links.json")
+from core.browser import ensure_playwright_browsers
+from core.proxy import ProxyPoolMixed
+from core import session as _session
+
+RUNNER = os.environ.get("RUNNER", "gha")  # override with RUNNER=hetzner on VPS
 
 os.makedirs(os.path.join(ADMAVEN_DIR, "logs"), exist_ok=True)
 _run_id = os.environ.get("GITHUB_RUN_NUMBER") or datetime.now(tz=timezone(timedelta(hours=5, minutes=30))).strftime("%Y%m%d_%H%M%S")
 LOGS_FILE = os.path.join(ADMAVEN_DIR, "logs", f"run_logs_{_run_id}.jsonl")
 
 
-class ProxyPoolMixed:
-    """Blend two proxy pools: 70% high-CPM countries, 30% any countries."""
-    def __init__(self):
-        self.primary = ProxyPool("EVOMI_HIGH_CPM_COUNTRIES")
-        try:
-            self.secondary = ProxyPool("EVOMI_ANY_COUNTRIES")
-        except Exception:
-            self.secondary = None
-
-    def pick(self):
-        if self.secondary and random.random() < 0.25:
-            proxy = self.secondary.pick()
-            proxy["_pool"] = "secondary"
-        else:
-            proxy = self.primary.pick()
-            proxy["_pool"] = "primary"
-        return proxy
-
-    def __len__(self):
-        return len(self.primary) + (len(self.secondary) if self.secondary else 0)
-
-
-def file_hash(path):
-    return hashlib.md5(open(path, "rb").read()).hexdigest()
 
 
 
-DESTINATIONS_FILE = os.path.join(ADMAVEN_DIR, "destinations.txt")
-
-
-def post_to_paste_rs(content: str) -> str:
-    """Post content to paste.rs and return the URL."""
-    import urllib.request
-    req = urllib.request.Request("https://paste.rs/", data=content.encode(), method="POST")
-    with urllib.request.urlopen(req) as resp:
-        return resp.read().decode().strip()
-
-
-def load_daily_links():
-    """Return locker links — 1 per destination, each via its own paste.rs URL."""
-    if not os.path.exists(DESTINATIONS_FILE):
-        print(f"[error] destinations.txt not found")
+def load_daily_links(count=None):
+    """Fetch active AdMaven URLs from Supabase admaven_links table."""
+    import urllib.request as _req
+    url = os.environ.get("SUPABASE_URL", "").rstrip("/")
+    key = os.environ.get("SUPABASE_KEY", "")
+    if not url or not key:
+        print("[error] SUPABASE_URL / SUPABASE_KEY not set")
         sys.exit(1)
 
-    current_hash = file_hash(DESTINATIONS_FILE)
+    params = "select=id,movie_id,admaven_url,destination_url,bucket&status=eq.active&expires_at=gt.now()&order=created_at.desc"
+    if count:
+        params += f"&limit={count}"
 
-    if os.path.exists(LINKS_FILE):
-        with open(LINKS_FILE) as f:
-            data = json.load(f)
-        if data.get("source_hash") == current_hash and data.get("links"):
-            print(f"[links] destinations unchanged — using {len(data['links'])} existing locker links")
-            return data["links"]
+    req = _req.Request(
+        f"{url}/rest/v1/admaven_links?{params}",
+        headers={"apikey": key, "Authorization": f"Bearer {key}"},
+    )
+    with _req.urlopen(req, timeout=15) as r:
+        rows = json.loads(r.read())
 
-    template_file = os.path.join(ADMAVEN_DIR, "destinations_template.txt")
-    template = open(template_file).read() if os.path.exists(template_file) else ""
-    destinations = [l.strip() for l in open(DESTINATIONS_FILE) if l.strip().startswith("http")]
-    if not destinations:
-        print("[error] destinations.txt is empty")
-        sys.exit(1)
-
-    print(f"[sync]  {len(destinations)} destinations → posting each to paste.rs...")
-    links = []
-    for i, dest in enumerate(destinations):
-        if i > 0:
-            time.sleep(2)
-        content = template + "\n" + dest + "\n"
-        paste_url = post_to_paste_rs(content)
-        print(f"  [{i+1}/{len(destinations)}] paste → {paste_url}")
-        locker_url = create_locker(paste_url.rstrip("/") + ".txt")
-        if locker_url:
-            links.append(locker_url)
-            print(f"  [{i+1}/{len(destinations)}] locker → {locker_url}")
-        else:
-            print(f"  [{i+1}/{len(destinations)}] locker failed — skipping")
-
+    links = [{"url": row["admaven_url"], "destination": row.get("destination_url"), "movie_id": row.get("movie_id", 0), "bucket": row.get("bucket"), "link_id": row.get("id")} for row in rows if row.get("admaven_url")]
     if not links:
-        print("[error] could not generate any locker links")
+        print("[error] no active links in Supabase — run day1_seed or nightly_refresh first")
         sys.exit(1)
 
-    with open(LINKS_FILE, "w") as f:
-        json.dump({"source_hash": current_hash, "links": links}, f, indent=2)
-
-    print(f"[links] saved {len(links)} links to {LINKS_FILE}\n")
+    print(f"[links] {len(links)} active links from Supabase")
     return links
 
 
@@ -143,95 +84,60 @@ def write_log(entry):
         f.write(json.dumps(entry) + "\n")
 
 
-def get_country(ip):
-    try:
-        with urllib.request.urlopen(f"http://ip-api.com/json/{ip}?fields=countryCode", timeout=5) as r:
-            data = json.loads(r.read())
-            return data.get("countryCode", "??")
-    except Exception:
-        return "??"
-
-
 MAX_CONCURRENT = 10
 
 
-async def run_instance(idx, url, device, use_tor, headless, pool, logs=False, sem=None, start_delay=0):
+async def run_instance(idx, url, device, use_tor, headless, pool, logs=False, sem=None, start_delay=0, destination=None, prefer_mode=None, dump_html=False, movie_id=0, bucket=None, link_id=None):
     if start_delay > 0:
         print(f"[#{idx}] queued — starting in {start_delay:.1f}s...")
         await asyncio.sleep(start_delay)
     async with sem:
-        print(f"\n[#{idx}] starting instance {idx}  url={url}")
-        try:
-            result = await run(
-                url=url,
-                device=device,
-                use_tor=use_tor,
-                headless=headless,
-                proxy_pool=pool,
-            )
-        except Exception as e:
-            print(f"[#{idx}] ✗ crashed: {type(e).__name__}: {e}")
-            if logs:
-                entry = {
-                    "ts":       datetime.now(tz=_IST).strftime("%Y-%m-%d %I:%M:%S %p IST"),
-                    "instance": idx,
-                    "device":   device or "?",
-                    "ip":       None,
-                    "country":  "??",
-                    "mode":     "unknown",
-                    "url":      url,
-                    "redirect": None,
-                    "success":  False,
-                    "reason":   "instance_crashed",
-                    "error":    f"{type(e).__name__}: {e}",
-                    "video_reloads": 0,
-                    "bw_kb":    0,
-                }
-                write_log(entry)
-            raise
-        redirect = result["redirect_url"]
-        redirected = bool(redirect and redirect != url)
-        skipped = result.get("skipped", False)
-        status = "~" if skipped else ("✓" if redirected else "✗")
-        print(f"\n[#{idx}] {status} device={result['device']}  ip={result['ip']}  redirect={result['redirect_url']}")
-        if logs:
-            bw_kb    = (result.get("bytes_sent", 0) + result.get("bytes_recv", 0)) / 1024
-            pool_src = result.get("pool_source", "unknown")
-            mode     = "high_cpm" if pool_src == "primary" else "low_cpm"
-            country  = get_country(result["ip"]) if result.get("ip") else "??"
+        result = await _session.run_session(
+            instance=idx,
+            url=url,
+            movie_id=movie_id or 0,
+            link_id=link_id,
+            bucket=bucket,
+            proxy_pool=pool,
+            headless=headless,
+            device=device,
+            prefer_mode=prefer_mode,
+            destination=destination,
+            logs=logs,
+        )
+        if logs and result.get("success") is not None:
             entry = {
-                "ts":       datetime.now(tz=_IST).strftime("%Y-%m-%d %I:%M:%S %p IST"),
-                "instance": idx,
-                "device":   result["device"],
-                "ip":       result["ip"],
-                "country":  country,
-                "mode":     mode,
-                "url":      url,
-                "redirect": redirect,
-                "success":  redirected,
-                "reason":   None if redirected else result.get("reason", "unknown"),
-                "error":    result.get("error"),
-                "video_reloads": result.get("video_reloads", 0),
-                "bw_kb":    round(bw_kb, 1),
+                "ts":           datetime.now(tz=_IST).strftime("%Y-%m-%d %I:%M:%S %p IST"),
+                "runner":       RUNNER,
+                "instance":     idx,
+                "device":       result.get("device"),
+                "ip":           result.get("ip"),
+                "country":      result.get("country"),
+                "mode":         result.get("mode"),
+                "url":          url,
+                "destination":  destination,
+                "success":      result.get("success"),
+                "reason":       result.get("reason"),
+                "bw_kb":        round(result.get("bw_kb", 0), 1),
+                "pending_tasks": result.get("pending_tasks", []),
             }
             write_log(entry)
-            print(f"[#{idx}] logged → country={country}  mode={mode}  bw={bw_kb:.1f}KB")
+        result["_high_cpm"] = (result.get("mode") == "high_cpm")
         return result
 
 
 async def main_async(args):
     if args.url:
-        links = [args.url]
+        links = [{"url": args.url, "destination": None}]
         print(f"[run]  explicit URL: {args.url}")
     else:
-        links = load_daily_links()
-        print(f"[run]  {len(links)} daily links available — each instance picks one randomly")
+        links = load_daily_links(count=args.count)
+        print(f"[run]  {len(links)} links loaded — each instance picks one randomly")
 
     pool = None
     if not args.no_proxy:
         try:
             pool = ProxyPoolMixed()
-            print(f"[proxy] 70% high-CPM, 30% any")
         except Exception as e:
             print(f"[warn] could not load proxies: {e}")
 
@@ -251,25 +157,47 @@ async def main_async(args):
     failed = 0
     total_skipped = 0
     total_bytes = 0
-    primary_success = 0
-    secondary_success = 0
+    high_cpm_count = 0
+    low_cpm_count = 0
     idx = 0
     active = set()
-    proxy_pool_map = {}  # maps task idx to pool source
+    task_meta = {}  # task -> (device_category, mode)
     max_attempts = count * 6  # cap total spawns to prevent runaway on high video-skip rate
 
     def _needs_more():
         return succeeded + len(active) < count and idx < max_attempts
 
-    async def _spawn():
+    from core.browser import DEVICE_PROFILE
+    _iphones  = [d for d in DEVICE_PROFILE if "iPhone" in d]
+    _androids = [d for d in DEVICE_PROFILE if "iPhone" not in d]
+
+    def _pick_device(prefer_category=None):
+        if args.device:
+            return args.device
+        if prefer_category == "ios":
+            return random.choice(_iphones)
+        if prefer_category == "android":
+            return random.choice(_androids)
+        return None  # random per-instance in admaven.py
+
+    async def _spawn(prefer_category=None, prefer_mode=None):
         nonlocal idx
         idx += 1
-        url = random.choice(links)
+        link = random.choice(links)
+        device = _pick_device(prefer_category)
+        # category will be resolved from result.device after the run completes
+        category = "ios" if (device and "iPhone" in device) else ("android" if device else prefer_category)
         t = asyncio.ensure_future(
-            run_instance(idx, url, args.device, args.tor,
-                         headless, pool, logs=args.logs, sem=sem,
-                         start_delay=random.uniform(0, 10))
+            run_instance(idx, link["url"], device, args.tor,
+                         headless, pool, logs=args.logs, dump_html=args.dump_html, sem=sem,
+                         start_delay=random.uniform(0, 10),
+                         destination=link["destination"],
+                         prefer_mode=prefer_mode,
+                         movie_id=link.get("movie_id", 0),
+                         bucket=link.get("bucket"),
+                         link_id=link.get("link_id"))
         )
+        task_meta[t] = (category, prefer_mode)
         active.add(t)
         return t
 
@@ -281,36 +209,37 @@ async def main_async(args):
         done, _ = await asyncio.wait(active, return_when=asyncio.FIRST_COMPLETED)
         for t in done:
             active.discard(t)
+            meta = task_meta.pop(t, (None, None))
             try:
                 result = t.result()
             except Exception:
                 failed += 1
                 if _needs_more():
                     await asyncio.sleep(random.uniform(3, 6))
-                    await _spawn()
+                    await _spawn(prefer_category=meta[0], prefer_mode=meta[1])
                 continue
-            total_bytes += result.get("bytes_sent", 0) + result.get("bytes_recv", 0)
+            total_bytes += result.get("bw_kb", 0) * 1024
+            result_mode = result.get("pool_source", meta[1])
+            result_category = "ios" if (result.get("device") and "iPhone" in result["device"]) else "android"
             if result.get("skipped"):
                 total_skipped += 1
             elif result.get("success"):
                 succeeded += 1
-                pool_src = result.get("pool_source", "primary")
-                if pool_src == "secondary":
-                    secondary_success += 1
+                if result.get("_high_cpm"):
+                    high_cpm_count += 1
                 else:
-                    primary_success += 1
+                    low_cpm_count += 1
             else:
                 failed += 1
             if _needs_more():
                 await asyncio.sleep(random.uniform(3, 6))
-                await _spawn()
+                await _spawn(prefer_category=result_category, prefer_mode=result_mode)
 
     total_attempts = succeeded + failed + total_skipped
     avg_kb = (total_bytes / total_attempts / 1024) if total_attempts else 0
     print(f"\n[done] {succeeded}/{count} succeeded  ({total_attempts} total: {total_skipped} skipped, {failed} failed)")
+    print(f"[cpm]  {high_cpm_count} high  ·  {low_cpm_count} low")
     print(f"[bw]   {total_bytes/1024/1024:.2f} MB total  ·  {avg_kb:.1f} KB/run avg")
-    if pool:
-        print(f"[pool] {primary_success} high, {secondary_success} other")
 
 
 def main():
@@ -333,9 +262,11 @@ def main():
                     help="route traffic through Tor (slower but hides real IP from proxy provider)")
     ap.add_argument("--logs", action="store_true",
                     help="append device+IP log entry to run_logs.jsonl after each instance")
+    ap.add_argument("--dump-html", dest="dump_html", action="store_true",
+                    help="save page HTML per instance to logs/html/ (opt-in, off by default)")
     args = ap.parse_args()
 
-    ensure_playwright_browsers(["chromium", "webkit"])
+    ensure_playwright_browsers(["chromium"])
 
     # args.tor is already set by --tor flag (default False)
     asyncio.run(main_async(args))

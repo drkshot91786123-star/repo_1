@@ -1,7 +1,0 @@
-- generic [active] [ref=e1]:
-  - generic [ref=e3]:
-    - link "Go back" [ref=e4] [cursor=pointer]:
-      - /url: /
-      - img [ref=e5]
-    - img [ref=e8]
-  - alert [ref=e10]

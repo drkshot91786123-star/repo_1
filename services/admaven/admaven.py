@@ -24,20 +24,17 @@ import urllib.request
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 _BLOCK_DOMAINS = {
-    "js.stripe.com",
     "fonts.gstatic.com",
     "fonts.googleapis.com",
-    "cdn.jsdelivr.net",
     "developer.apple.com",
     "upload.wikimedia.org",
+    "js.stripe.com",
     "api.taboola.com",
+    "cdn.jsdelivr.net",
 }
 
 from core.browser import DEVICE_PROFILE, MobileBrowser
 from core.proxy import ProxyPool
-from core.proxy_chain import ProxyChain, DirectProxyChain
-
-from core.tor import TorController
 
 _UA = ("Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36")
@@ -58,12 +55,10 @@ def resolve_url(url, timeout=15):
         return url
 
 
-_IPHONE_DEVICES  = [d for d in DEVICE_PROFILE if "iPhone" in d]
-_ANDROID_DEVICES = [d for d in DEVICE_PROFILE if "iPhone" not in d]
-_ALL_DEVICES     = list(DEVICE_PROFILE.keys())
+_ALL_DEVICES = list(DEVICE_PROFILE.keys())
 
 
-def pick_device(prefer=None, tor=False):
+def pick_device(prefer=None):
     if prefer:
         if prefer not in DEVICE_PROFILE:
             raise ValueError(f"Unknown device {prefer!r}")
@@ -71,7 +66,7 @@ def pick_device(prefer=None, tor=False):
     return random.choice(_ALL_DEVICES)
 
 
-async def _try_with_proxy(url, chosen, proxy, headless, poll_interval, timeout):
+async def _try_with_proxy(url, chosen, proxy, headless, poll_interval, timeout, dump_html=False):
     """
     Open the locker page with a specific proxy, run the full automation flow.
     Returns (success, result_dict).  If the page loads blank (no tasks found),
@@ -163,34 +158,18 @@ async def _try_with_proxy(url, chosen, proxy, headless, poll_interval, timeout):
             result["reason"] = "no_tasks_empty"
             result["bytes_sent"] = _bw["sent"]; result["bytes_recv"] = _bw["recv"]; return False, result
 
-        # If video tasks detected, reload up to 3 times hoping for different tasks
-        for reload_attempt in range(4):
-            task_names = []
-            for row in task_rows:
-                el = await row.query_selector(NAME_SEL)
-                task_names.append((await el.inner_text()).strip() if el else "")
-            if not any("video" in n.lower() for n in task_names):
-                break
-            if reload_attempt == 3:
-                print(f"[skip]   video task persists after 3 reloads {task_names} — skipping instance")
-                result["reason"] = "video_task_skipped"
-                result["skipped"] = True
-                result["bytes_sent"] = _bw["sent"]; result["bytes_recv"] = _bw["recv"]; return False, result
-            result["video_reloads"] += 1
-            print(f"[reload] video task detected {task_names} — reloading (attempt {reload_attempt + 1}/3)")
-            await asyncio.sleep(random.uniform(2, 4))
-            try:
-                await page.goto(url, wait_until="commit", timeout=60000)
-                try:
-                    await page.wait_for_load_state("domcontentloaded", timeout=45000)
-                except Exception:
-                    pass
-            except Exception as e:
-                print(f"[reload] failed: {e}")
-                result["reason"] = "nav_failed"
-                result["error"] = str(e)
-                result["bytes_sent"] = _bw["sent"]; result["bytes_recv"] = _bw["recv"]; return False, result
-            task_rows = await page.query_selector_all(TASK_SEL)
+        # If any video task detected, skip instantly so the driver spawns
+        # a replacement in the same device category + CPM mode.
+        task_names = []
+        for row in task_rows:
+            el = await row.query_selector(NAME_SEL)
+            task_names.append((await el.inner_text()).strip() if el else "")
+        result["task_names"] = task_names
+        if any("video" in n.lower() for n in task_names):
+            print(f"[skip]   video task detected {task_names} — skipping for replacement")
+            result["reason"] = "video_task_skipped"
+            result["skipped"] = True
+            result["bytes_sent"] = _bw["sent"]; result["bytes_recv"] = _bw["recv"]; return False, result
 
         # ── Resolve exit IP ──────────────────────────────────────
         try:
@@ -205,15 +184,68 @@ async def _try_with_proxy(url, chosen, proxy, headless, poll_interval, timeout):
         n = len(task_rows)
         print(f"[tasks]  found {n} task(s)")
 
+        # ── Reverse BotD body-scaling defense (if present) ───────
+        botd_fixed = await page.evaluate("""() => {
+            const b = document.body;
+            const z = parseFloat(b.style.zoom || '1');
+            const w = parseFloat(b.style.width || '0');
+            const hit = (z && z < 0.95) || (w && w > 2000);
+            if (hit) {
+                b.style.zoom = '';
+                b.style.width = '';
+                b.style.transform = '';
+                b.style.textSizeAdjust = '';
+                b.style.webkitTextSizeAdjust = '';
+            }
+            return hit;
+        }""")
+        if botd_fixed:
+            print("[botd]   defense detected — reset body zoom/width, continuing")
+            result["botd_reset"] = True
+            await asyncio.sleep(0.5)
+            task_rows = await page.query_selector_all(TASK_SEL)
+            n = len(task_rows)
+
+        # ── Dump page HTML for debugging (opt-in via dump_html) ──
+        if dump_html:
+            try:
+                import os as _os
+                from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+                _ist = _tz(_td(hours=5, minutes=30))
+                _html_dir = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "logs", "html")
+                _os.makedirs(_html_dir, exist_ok=True)
+                _fname = f"{_dt.now(tz=_ist).strftime('%Y%m%d_%H%M%S_%f')}.html"
+                _path = _os.path.join(_html_dir, _fname)
+                with open(_path, "w", encoding="utf-8") as _f:
+                    _f.write(await page.content())
+                result["html_path"] = _path
+                print(f"[html]   saved {_path}")
+            except Exception as _e:
+                print(f"[html]   dump failed: {_e}")
+
         # ── 3. Click each task, close new tab instantly ──────────
-        ctx.on("page", lambda p: asyncio.ensure_future(p.close()))
+        _close_popups = lambda p: asyncio.ensure_future(p.close())
+        ctx.on("page", _close_popups)
+        has_touch = bool(await page.evaluate("() => 'ontouchstart' in window || navigator.maxTouchPoints > 0"))
         for i, row in enumerate(random.sample(task_rows, len(task_rows))):
             name_el = await row.query_selector(NAME_SEL)
             name = (await name_el.inner_text()).strip() if name_el else f"Task {i+1}"
             print(f"[click]  task {i+1}/{n}: {name}")
             await asyncio.sleep(random.uniform(2, 8))   # dwell before click
             try:
-                await row.click()
+                await row.scroll_into_view_if_needed()
+                box = await row.bounding_box()
+                if box:
+                    cx = box["x"] + box["width"] / 2
+                    cy = box["y"] + box["height"] / 2
+                    if has_touch:
+                        await page.touchscreen.tap(cx, cy)
+                    else:
+                        await page.mouse.move(cx, cy, steps=8)
+                        await asyncio.sleep(random.uniform(0.2, 0.5))
+                        await page.mouse.click(cx, cy)
+                else:
+                    await row.click()
             except Exception as e:
                 print(f"  → tab error: {e}")
             await asyncio.sleep(random.uniform(1, 4))   # wait after tab opens
@@ -238,7 +270,17 @@ async def _try_with_proxy(url, chosen, proxy, headless, poll_interval, timeout):
             elapsed += poll_interval
         else:
             print("[timeout] tasks did not complete — aborting")
+            pending = await page.evaluate("""() => {
+                return [...document.querySelectorAll('[data-d30task], [data-task]')]
+                    .filter(r => !r.classList.contains('done'))
+                    .map(r => {
+                        const n = r.querySelector('.d30-task-name, .d31-task-name');
+                        return n ? n.innerText.trim() : '';
+                    });
+            }""")
             result["reason"] = "tasks_poll_timeout"
+            result["pending_tasks"] = pending
+            result["task_names"] = None  # drop the full list
             result["bytes_sent"] = _bw["sent"]; result["bytes_recv"] = _bw["recv"]
             return True, result  # page loaded fine, just slow tasks — don't retry proxy
 
@@ -268,88 +310,49 @@ async def _try_with_proxy(url, chosen, proxy, headless, poll_interval, timeout):
                 result["bytes_sent"] = _bw["sent"]; result["bytes_recv"] = _bw["recv"]
                 return True, result
 
-        await page.click(UNLOCK_SEL)
-
-        # ── 6. Wait for redirect, close ──────────────────────────
+        # Keep auto-closing popups so the destination tab dies instantly
         try:
-            await page.wait_for_load_state("domcontentloaded", timeout=20000)
+            await page.click(UNLOCK_SEL, force=True, timeout=5000)
+        except Exception:
+            await page.evaluate("""() => {
+                const b = document.getElementById('d30unlockBtn')
+                       || document.querySelector('.d31-unlock-btn');
+                if (b) b.click();
+            }""")
+        dest_url = page.url
+
+        # ── 6. Close instantly after unlock click ─────────────────
+        result["redirect_url"] = dest_url or page.url
+        result["success"] = True
+        print(f"[redirect] {result['redirect_url']}")
+        print(f"[close]  done — closing browser")
+        try:
+            await page.close()
         except Exception:
             pass
-
-        result["redirect_url"] = page.url
-        result["success"] = True
-        print(f"[redirect] {page.url}")
-        print(f"[close]  done — closing browser")
+        try:
+            await ctx.close()
+        except Exception:
+            pass
 
     result["bytes_sent"] = _bw["sent"]; result["bytes_recv"] = _bw["recv"]
     return True, result
 
 
 async def run(url, device=None, use_tor=False, headless=False,
-              poll_interval=5, timeout=180, proxy_pool=None):
-    """
-    Run the full locker flow.  When proxy_pool + use_tor, cycle through proxies
-    until the page loads with actual task rows (site accepts the IP).
-    """
+              poll_interval=5, timeout=150, proxy_pool=None, force_mode=None,
+              dump_html=False):
     url = resolve_url(url)
-    chosen = pick_device(device, tor=use_tor)
-    fallback = {"device": chosen, "ip": None, "redirect_url": None, "success": False}
+    chosen = pick_device(device)
 
-    # ── Tor setup ────────────────────────────────────────────────
-    if use_tor:
-        tor_ctrl = TorController()
-        tor_ctrl.require_running()
-        tor_ctrl.set_exit_countries()
-        tor_ctrl.new_identity(wait=8)
-
-    if proxy_pool and use_tor:
-        # Tor → residential chain: try each proxy until the site accepts one
-        proxies = [proxy_pool.pick() for _ in range(len(proxy_pool))]
-        # Shuffle so we don't always try in the same order
-        random.shuffle(proxies)
-        for attempt, res in enumerate(proxies, 1):
-            print(f"\n[proxy]  attempt {attempt}/{len(proxies)}: {res['server']}")
-            chain = ProxyChain(res, tor_host="127.0.0.1", tor_port=9050)
-            async with chain:
-                probe_ok = await asyncio.get_event_loop().run_in_executor(
-                    None, chain._probe, "speedy-links.com", 443)
-                if not probe_ok:
-                    print(f"[probe]  tunnel dead — skipping")
-                    continue
-
-                page_loaded, result = await _try_with_proxy(
-                    url, chosen, chain.local_url, headless, poll_interval, timeout)
-
-                if page_loaded:
-                    # Page loaded with this proxy (tasks found or timed out)
-                    # Don't retry — either succeeded or had a task timeout
-                    result.setdefault("ip", res["server"])
-                    return result
-
-                print(f"[retry]  blank page — site blocked this proxy, trying next...")
-                # rotate Tor identity so next proxy comes through a different exit
-                tor_ctrl.new_identity(wait=5)
-
-        print("[error]  all proxies blocked by site")
-        return fallback
-
-    elif use_tor:
-        proxy = tor_ctrl.socks_url
-        print(f"[tor]    routing through Tor SOCKS")
-        _, result = await _try_with_proxy(url, chosen, proxy, headless, poll_interval, timeout)
+    if proxy_pool:
+        try:
+            res = proxy_pool.pick(force_mode=force_mode)
+        except TypeError:
+            res = proxy_pool.pick()
+        _, result = await _try_with_proxy(url, chosen, res, headless, poll_interval, timeout, dump_html=dump_html)
+        result["pool_source"] = res.get("_pool", "high_cpm")
         return result
 
-    elif proxy_pool:
-        res = proxy_pool.pick()
-        if "iPhone" in chosen:
-            # WebKit can't auth with HTTP proxies — use a local relay instead
-            async with DirectProxyChain(res) as chain:
-                _, result = await _try_with_proxy(url, chosen, chain.local_url, headless, poll_interval, timeout)
-        else:
-            _, result = await _try_with_proxy(url, chosen, res, headless, poll_interval, timeout)
-        result["pool_source"] = res.get("_pool", "primary")
-        return result
-
-    else:
-        _, result = await _try_with_proxy(url, chosen, None, headless, poll_interval, timeout)
-        return result
+    _, result = await _try_with_proxy(url, chosen, None, headless, poll_interval, timeout, dump_html=dump_html)
+    return result

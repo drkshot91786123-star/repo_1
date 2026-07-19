@@ -1,6 +1,0 @@
-[    8454ms] [WARNING] An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing. @ about:srcdoc:0
-[   12382ms] Uncaught TypeError: wN is not a function
-    at <anonymous> (https://hzoyet6hm3oj8m.xjnueiii85kguhnrzpz3.cfd/k64k9ktBiMf3nw4PU2gC9G/ewQng:0:17781)
-    at notify (https://hzoyet6hm3oj8m.xjnueiii85kguhnrzpz3.cfd/k64k9ktBiMf3nw4PU2gC9G/ewQng:0:17775)
-    at change (https://hzoyet6hm3oj8m.xjnueiii85kguhnrzpz3.cfd/k64k9ktBiMf3nw4PU2gC9G/ewQng:0:19415)
-    at <anonymous> (https://hzoyet6hm3oj8m.xjnueiii85kguhnrzpz3.cfd/k64k9ktBiMf3nw4PU2gC9G/ewQng:0:18620)

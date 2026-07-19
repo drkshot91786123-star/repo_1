@@ -1,7 +1,7 @@
 """
 Mobile-browser launcher for testing your own website.
 
-Runs your site in a REAL engine (iPhone → WebKit/Safari, Android → Chromium)
+Runs all devices through Chromium (iPhone UA/viewport emulated via device profile)
 emulating the device, with a spoof layer that closes the leaks the desktop
 engine exposes — including the getter-`toString` "native code" tell that naive
 navigator patches miss.
@@ -23,7 +23,7 @@ import sys
 from playwright.async_api import async_playwright
 
 
-def ensure_playwright_browsers(browsers=("chromium", "webkit")):
+def ensure_playwright_browsers(browsers=("chromium",)):
     """Verify each Playwright browser binary is on disk; download any that are missing.
 
     Fails fast with a clear error if the install itself fails, so a bad runner
@@ -121,6 +121,36 @@ def spoof_script(profile: dict) -> str:
       }});
       faked.add(Function.prototype.toString);  // hide the proxy itself too
 
+      // Perma-revert BotD's body zoom/width defense as soon as body exists.
+      const _killBodyScale = () => {{
+        const b = document.body; if (!b) return;
+        const strip = () => {{
+          if (b.style.zoom)  b.style.zoom  = '';
+          if (b.style.width && parseFloat(b.style.width) > 2000) b.style.width = '';
+          if (b.style.transform) b.style.transform = '';
+        }};
+        strip();
+        try {{
+          new MutationObserver(strip).observe(b, {{attributes: true, attributeFilter: ['style']}});
+        }} catch (e) {{}}
+      }};
+      if (document.body) _killBodyScale();
+      else document.addEventListener('DOMContentLoaded', _killBodyScale, {{once: true}});
+
+      // Kill the biggest BotD tells: webdriver flag, empty plugins, missing chrome.
+      patch(navigator, 'webdriver', false);
+      try {{ delete Object.getPrototypeOf(navigator).webdriver; }} catch (e) {{}}
+      if (!window.chrome) {{
+        window.chrome = {{ runtime: {{}}, loadTimes: () => ({{}}), csi: () => ({{}}) }};
+      }}
+      const _origQuery = window.navigator.permissions && window.navigator.permissions.query;
+      if (_origQuery) {{
+        window.navigator.permissions.query = (p) =>
+          p && p.name === 'notifications'
+            ? Promise.resolve({{ state: Notification.permission }})
+            : _origQuery(p);
+      }}
+
 {patches}
     }})();
     """
@@ -149,7 +179,7 @@ class MobileBrowser:
         # iPhones => WebKit (Safari). Android => Chromium is more faithful.
         # NOTE: SOCKS proxying (Tor) is reliable on Chromium; WebKit's SOCKS
         # support is limited and may leak DNS — prefer Android devices with Tor.
-        engine = self._pw.webkit if "iPhone" in self.device else self._pw.chromium
+        engine = self._pw.chromium
         launch_kwargs = {"headless": self.headless}
         # Tor passes a string URL; residential proxy passes a dict with
         # server/username/password. Normalise both to a dict for launch.
@@ -159,20 +189,17 @@ class MobileBrowser:
                 proxy_dict = {k: v for k, v in self.proxy.items() if v}
             else:
                 proxy_dict = {"server": self.proxy}
-            # WebKit ignores username/password keys and falls back to macOS
-            # system-level auth dialog. Embed creds in the URL instead.
-            if "iPhone" in self.device and "username" in proxy_dict:
-                from urllib.parse import quote
-                u = quote(proxy_dict["username"], safe="")
-                p = quote(proxy_dict.get("password", ""), safe="")
-                server = proxy_dict["server"].replace("http://", "").replace("https://", "")
-                proxy_dict = {"server": f"http://{u}:{p}@{server}"}
             launch_kwargs["proxy"] = proxy_dict
         self._browser = await engine.launch(**launch_kwargs)
         ctx_kwargs = dict(self._pw.devices[self.device])
         if proxy_dict:
             ctx_kwargs["proxy"] = proxy_dict
         self.context = await self._browser.new_context(**ctx_kwargs)
+        try:
+            from playwright_stealth import Stealth
+            await Stealth().apply_stealth_async(self.context)
+        except Exception as e:
+            print(f"[stealth] failed to apply: {e}")
         await self.context.add_init_script(spoof_script(DEVICE_PROFILE[self.device]))
         self.page = await self.context.new_page()
         return self

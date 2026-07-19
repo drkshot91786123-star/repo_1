@@ -1,2 +1,0 @@
-[    1217ms] [WARNING] [Cloudflare Turnstile] Compatibility layer enabled. @ https://challenges.cloudflare.com/turnstile/v0/api.js?compat=recaptcha&onload=captchaLoaded:0
-[    1217ms] [WARNING] [Cloudflare Turnstile] Unable to find onload callback 'captchaLoaded' immediately after loading, expected 'function', got 'undefined'. @ https://challenges.cloudflare.com/turnstile/v0/api.js?compat=recaptcha&onload=captchaLoaded:0

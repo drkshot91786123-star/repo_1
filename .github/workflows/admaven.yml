@@ -27,8 +27,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install playwright requests
-          playwright install chromium webkit
-          playwright install-deps chromium webkit
+          playwright install chromium
+          playwright install-deps chromium
 
       - name: Run AdMaven job 1
         env:
@@ -38,12 +38,6 @@ jobs:
           EVOMI_PASS: ${{ secrets.EVOMI_PASS }}
           EVOMI_HIGH_CPM_COUNTRIES: ${{ secrets.EVOMI_HIGH_CPM_COUNTRIES }}
           EVOMI_ANY_COUNTRIES: ${{ secrets.EVOMI_ANY_COUNTRIES }}
-          GEONODE_HOST: ${{ secrets.GEONODE_HOST }}
-          GEONODE_PORT: ${{ secrets.GEONODE_PORT }}
-          GEONODE_USER: ${{ secrets.GEONODE_USER }}
-          GEONODE_PASS: ${{ secrets.GEONODE_PASS }}
-          GEONODE_HIGH_CPM_COUNTRIES: ${{ secrets.GEONODE_HIGH_CPM_COUNTRIES }}
-          GEONODE_ANY_COUNTRIES: ${{ secrets.GEONODE_ANY_COUNTRIES }}
           PROXY_PROVIDER: ${{ secrets.PROXY_PROVIDER }}
           ADMAVEN_API_KEY: ${{ secrets.ADMAVEN_API_KEY }}
           ADMAVEN_SUB_ID: ${{ secrets.ADMAVEN_SUB_ID }}
@@ -79,8 +73,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install playwright requests
-          playwright install chromium webkit
-          playwright install-deps chromium webkit
+          playwright install chromium
+          playwright install-deps chromium
 
       - name: Run AdMaven job 2
         env:
@@ -90,12 +84,6 @@ jobs:
           EVOMI_PASS: ${{ secrets.EVOMI_PASS }}
           EVOMI_HIGH_CPM_COUNTRIES: ${{ secrets.EVOMI_HIGH_CPM_COUNTRIES }}
           EVOMI_ANY_COUNTRIES: ${{ secrets.EVOMI_ANY_COUNTRIES }}
-          GEONODE_HOST: ${{ secrets.GEONODE_HOST }}
-          GEONODE_PORT: ${{ secrets.GEONODE_PORT }}
-          GEONODE_USER: ${{ secrets.GEONODE_USER }}
-          GEONODE_PASS: ${{ secrets.GEONODE_PASS }}
-          GEONODE_HIGH_CPM_COUNTRIES: ${{ secrets.GEONODE_HIGH_CPM_COUNTRIES }}
-          GEONODE_ANY_COUNTRIES: ${{ secrets.GEONODE_ANY_COUNTRIES }}
           PROXY_PROVIDER: ${{ secrets.PROXY_PROVIDER }}
           ADMAVEN_API_KEY: ${{ secrets.ADMAVEN_API_KEY }}
           ADMAVEN_SUB_ID: ${{ secrets.ADMAVEN_SUB_ID }}
@@ -131,8 +119,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install playwright requests
-          playwright install chromium webkit
-          playwright install-deps chromium webkit
+          playwright install chromium
+          playwright install-deps chromium
 
       - name: Run AdMaven job 3
         env:
@@ -142,12 +130,6 @@ jobs:
           EVOMI_PASS: ${{ secrets.EVOMI_PASS }}
           EVOMI_HIGH_CPM_COUNTRIES: ${{ secrets.EVOMI_HIGH_CPM_COUNTRIES }}
           EVOMI_ANY_COUNTRIES: ${{ secrets.EVOMI_ANY_COUNTRIES }}
-          GEONODE_HOST: ${{ secrets.GEONODE_HOST }}
-          GEONODE_PORT: ${{ secrets.GEONODE_PORT }}
-          GEONODE_USER: ${{ secrets.GEONODE_USER }}
-          GEONODE_PASS: ${{ secrets.GEONODE_PASS }}
-          GEONODE_HIGH_CPM_COUNTRIES: ${{ secrets.GEONODE_HIGH_CPM_COUNTRIES }}
-          GEONODE_ANY_COUNTRIES: ${{ secrets.GEONODE_ANY_COUNTRIES }}
           PROXY_PROVIDER: ${{ secrets.PROXY_PROVIDER }}
           ADMAVEN_API_KEY: ${{ secrets.ADMAVEN_API_KEY }}
           ADMAVEN_SUB_ID: ${{ secrets.ADMAVEN_SUB_ID }}
@@ -183,8 +165,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install playwright requests
-          playwright install chromium webkit
-          playwright install-deps chromium webkit
+          playwright install chromium
+          playwright install-deps chromium
 
       - name: Run AdMaven job 4
         env:
@@ -194,12 +176,6 @@ jobs:
           EVOMI_PASS: ${{ secrets.EVOMI_PASS }}
           EVOMI_HIGH_CPM_COUNTRIES: ${{ secrets.EVOMI_HIGH_CPM_COUNTRIES }}
           EVOMI_ANY_COUNTRIES: ${{ secrets.EVOMI_ANY_COUNTRIES }}
-          GEONODE_HOST: ${{ secrets.GEONODE_HOST }}
-          GEONODE_PORT: ${{ secrets.GEONODE_PORT }}
-          GEONODE_USER: ${{ secrets.GEONODE_USER }}
-          GEONODE_PASS: ${{ secrets.GEONODE_PASS }}
-          GEONODE_HIGH_CPM_COUNTRIES: ${{ secrets.GEONODE_HIGH_CPM_COUNTRIES }}
-          GEONODE_ANY_COUNTRIES: ${{ secrets.GEONODE_ANY_COUNTRIES }}
           PROXY_PROVIDER: ${{ secrets.PROXY_PROVIDER }}
           ADMAVEN_API_KEY: ${{ secrets.ADMAVEN_API_KEY }}
           ADMAVEN_SUB_ID: ${{ secrets.ADMAVEN_SUB_ID }}
