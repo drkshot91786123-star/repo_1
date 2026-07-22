@@ -70,6 +70,19 @@ async def insert_link(movie_id: int, movie_title: str, admaven_url: str,
         return r.json()[0]
 
 
+async def expire_link(link_id: str) -> None:
+    """Mark a single admaven_link as expired by id."""
+    _check_config()
+    async with httpx.AsyncClient() as c:
+        r = await c.patch(
+            f"{_URL}/rest/v1/admaven_links",
+            headers={**_HEADERS, "Prefer": "return=minimal"},
+            params={"id": f"eq.{link_id}"},
+            json={"status": "expired"},
+        )
+        r.raise_for_status()
+
+
 async def expire_old_links() -> int:
     """Delete links where expires_at < now(). Returns count deleted."""
     _check_config()

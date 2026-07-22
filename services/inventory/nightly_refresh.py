@@ -32,10 +32,23 @@ from services.inventory.schedule_builder import build_daily_schedule
 
 
 
+async def _is_dead(url: str) -> bool:
+    import httpx
+    try:
+        async with httpx.AsyncClient(follow_redirects=False, timeout=10) as c:
+            r = await c.head(url)
+            return r.status_code == 204
+    except Exception:
+        return False
+
+
 async def _create_one(movie: dict) -> bool:
     existing = await db.get_active_link(movie["movie_id"])
     if existing:
-        return False
+        if not await _is_dead(existing["admaven_url"]):
+            return False
+        print(f"  [dead] {existing['admaven_url']} — recreating")
+        await db.expire_link(existing["id"])
     url = create_link(movie["movie_id"], movie["movie_title"])
     await db.insert_link(
         movie_id    = movie["movie_id"],

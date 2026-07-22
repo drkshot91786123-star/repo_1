@@ -211,7 +211,7 @@ class MobileBrowser:
             await self._pw.stop()
 
     async def open(self, url=DEFAULT_URL):
-        await self.page.goto(url)
+        await self.page.goto(url, wait_until="commit")
         return self.page
 
     async def exit_ip(self, timeout=60000):
